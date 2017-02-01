@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL12.*;
+import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
 
 /**
  * Created by Joshua Freedman on 1/26/2017.
@@ -22,17 +22,17 @@ import static org.lwjgl.opengl.GL12.*;
  */
 public class Desktop {
 
-    private int backgroundImageTextureID;
     private final int toolbarHeight = 40;
-    private TexturedButton startTexturedButton;
-    private GeometrySquare toolbar;
     private final int displayHeight;
     private final int displayWidth;
     private final UseOrderList<BasePart> basePartList;
+    private int backgroundImageTextureID;
+    private TexturedButton startTexturedButton;
+    private GeometrySquare toolbar;
 
-    public Desktop() {
-        displayHeight = MainClass.vidmode.height();
-        displayWidth = MainClass.vidmode.width();
+    public Desktop(final MainClass mainClass) {
+        displayHeight = mainClass.getHeight();
+        displayWidth = mainClass.getWidth();
         backgroundImageTextureID = loadTexture("assets/background.png");
         final int startButtonTextureID = loadTexture("assets/start.png");
         toolbar = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(displayWidth, displayHeight, 0), new Vector4f(0.1f, 1, 0.3f, 0.65f));
