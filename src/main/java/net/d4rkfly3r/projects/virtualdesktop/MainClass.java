@@ -1,6 +1,6 @@
 package net.d4rkfly3r.projects.virtualdesktop;
 
-import javafx.scene.web.WebView;
+import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
 import org.lwjgl.*;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
@@ -23,12 +23,14 @@ public class MainClass {
     private long window;
     private Desktop desktop;
     public static GLFWVidMode vidmode;
+    private float xAngle, yAngle;
+    private BasePart lastBasePart;
 
     public void run() {
-        System.out.println("Hello LWJGL " + Version.getVersion() + "!");
+        System.out.println("LWJGL Version: " + Version.getVersion());
 
-        this.desktop = new Desktop();
         init();
+        postInit();
         loop();
 
         // Free the window callbacks and destroy the window
@@ -38,6 +40,9 @@ public class MainClass {
         // Terminate GLFW and free the error callback
         glfwTerminate();
         glfwSetErrorCallback(null).free();
+    }
+
+    private void postInit() {
     }
 
     private void init() {
@@ -63,11 +68,37 @@ public class MainClass {
 
         // Setup a key callback. It will be called every time a key is pressed, repeated or released.
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
-                glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
+//            if (action == GLFW_RELEASE) {
+            double dAngle = 0;
+            switch (key) {
+                case GLFW_KEY_ESCAPE:
+                    if (action == GLFW_RELEASE) {
+                        glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
+                    }
+                    break;
+                case GLFW_KEY_LEFT:
+                    yAngle -= dAngle;
+                    break;
+                case GLFW_KEY_RIGHT:
+                    yAngle += dAngle;
+                    break;
+                case GLFW_KEY_UP:
+                    xAngle += dAngle;
+                    break;
+                case GLFW_KEY_DOWN:
+                    xAngle -= dAngle;
+                    break;
+            }
+//            }
         });
 
-        glfwSetScrollCallback(window, (window1, xoffset, yoffset) -> {
+
+        glfwSetCursorPosCallback(window, (window1, xpos, ypos) -> {
+            final BasePart basePart = this.desktop.getPartUnder((int) xpos, (int) ypos);
+            if (basePart != null) {
+                this.lastBasePart = basePart;
+            }
+
         });
 
         // Get the thread stack and push a new frame
@@ -106,9 +137,12 @@ public class MainClass {
         // bindings available for use.
         GL.createCapabilities();
 
+        final int width = vidmode.width();
+        final int height = vidmode.height();
+
         GL11.glMatrixMode(GL11.GL_PROJECTION);
         GL11.glLoadIdentity();
-        GL11.glOrtho(0, vidmode.width(), vidmode.height(), 0, 500, -500);
+        GL11.glOrtho(0, width, height, 0, 1000, -1000);
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         GL11.glLoadIdentity();
 
@@ -118,16 +152,33 @@ public class MainClass {
         glEnable(GL_DEPTH_TEST);                            //Enables Depth Testing
         glDepthFunc(GL_LEQUAL);                             //The Type Of Depth Test To Do
         glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);  // Really Nice Perspective Calculations
+        glEnable(GL_TEXTURE_2D);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         // Run the rendering loop until the user has attempted to close
         // the window or has pressed the ESCAPE key.
+        this.desktop = new Desktop();
+
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
 
+            glPushAttrib(GL_CURRENT_BIT);
             glPushMatrix();
-            glRotatef(2, 1, 1, 0);
-            this.desktop.render();
+            glPushMatrix();
+            glTranslatef(0, 0, 999);
+            this.desktop.renderBase();
+            glPopMatrix();
 
+            glTranslatef(width / 2, height / 2, 0);
+            glRotatef(xAngle, 1, 0, 0);
+            glRotatef(yAngle, 0, 1, 0);
+            glTranslatef(-width / 2, -height / 2, 0);
+
+            glPushMatrix();
+            this.desktop.render();
+            glPopMatrix();
 
             glfwSwapBuffers(window); // swap the color buffers
 
@@ -135,6 +186,7 @@ public class MainClass {
             // invoked during this call.
             glfwPollEvents();
             glPopMatrix();
+            glPopAttrib();
 
         }
     }

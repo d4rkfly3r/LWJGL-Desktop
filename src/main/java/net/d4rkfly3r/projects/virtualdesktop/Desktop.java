@@ -1,7 +1,20 @@
 package net.d4rkfly3r.projects.virtualdesktop;
 
 
+import de.matthiasmann.twl.utils.PNGDecoder;
+import net.d4rkfly3r.projects.virtualdesktop.components.BasicWindow;
+import net.d4rkfly3r.projects.virtualdesktop.components.TexturedButton;
+import net.d4rkfly3r.projects.virtualdesktop.geometries.GeometrySquare;
+import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
+import org.joml.Vector3d;
+import org.joml.Vector4f;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL12.*;
 
 /**
  * Created by Joshua Freedman on 1/26/2017.
@@ -9,20 +22,108 @@ import static org.lwjgl.opengl.GL11.*;
  */
 public class Desktop {
 
-    private float rotationTriangle;
-    private float rotationQuad;
-    private float scale = 1;
+    private int backgroundImageTextureID;
+    private final int toolbarHeight = 40;
+    private TexturedButton startTexturedButton;
+    private GeometrySquare toolbar;
+    private final int displayHeight;
+    private final int displayWidth;
+    private final UseOrderList<BasePart> basePartList;
+
+    public Desktop() {
+        displayHeight = MainClass.vidmode.height();
+        displayWidth = MainClass.vidmode.width();
+        backgroundImageTextureID = loadTexture("assets/background.png");
+        final int startButtonTextureID = loadTexture("assets/start.png");
+        toolbar = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(displayWidth, displayHeight, 0), new Vector4f(0.1f, 1, 0.3f, 0.65f));
+        final GeometrySquare startButtonGeometry = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(toolbarHeight * 1.6f, displayHeight, 0), new Vector4f(0, 0, 0, .5f));
+        startTexturedButton = new TexturedButton(startButtonGeometry, startButtonTextureID);
+        basePartList = new UseOrderList<>();
+        basePartList.use(new BasicWindow(this)
+                .setTitle("FoxCore Window Test")
+                .setPositionX(10)
+                .setPositionY(10)
+                .setHeight(500)
+                .setWidth(350)
+                .setPinned(true)
+                .revalidate()
+        );
+    }
+
+    public BasePart getPartUnder(int x, int y) {
+        for (final BasePart basePart : this.basePartList.itemList) {
+            if (x >= basePart.getPositionX() && x <= basePart.getPositionX() + basePart.getWidth() && y >= basePart.getPositionY() && y <= basePart.getPositionY() + basePart.getHeight()) {
+                return basePart;
+            }
+        }
+        return null;
+    }
+
+
+    private int loadTexture(final String path) {
+        try (final FileInputStream fileInputStream = new FileInputStream(path)) {
+            final PNGDecoder decoder = new PNGDecoder(fileInputStream);
+            final int imageWidth = decoder.getWidth();
+            final int imageHeight = decoder.getHeight();
+            System.out.println("imageWidth=" + imageWidth);
+            System.out.println("imageHeight=" + imageHeight);
+            final ByteBuffer imageByteBuffer = ByteBuffer.allocateDirect(4 * imageWidth * imageHeight);
+            decoder.decode(imageByteBuffer, imageWidth * 4, PNGDecoder.Format.RGBA);
+            imageByteBuffer.flip();
+            final int textureID = glGenTextures();
+            glBindTexture(GL_TEXTURE_2D, textureID); //Bind texture ID
+            //Setup wrap mode
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            //Setup texture scaling filtering
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageByteBuffer);
+            return textureID;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    public void renderBase() {
+        glBindTexture(GL_TEXTURE_2D, backgroundImageTextureID);
+        glBegin(GL_QUADS);
+        glTexCoord2f(0, 0);
+        glVertex3f(0, 0, 0);
+        glTexCoord2f(1, 0);
+        glVertex3f(displayWidth, 0, 0);
+        glTexCoord2f(1, 1);
+        glVertex3f(displayWidth, displayHeight, 0);
+        glTexCoord2f(0, 1);
+        glVertex3f(0, displayHeight, 0);
+        glEnd();
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        toolbar.render();
+        startTexturedButton.render();
+    }
 
     public void render() {
-        int xOff = MainClass.vidmode.width() / 2;
-        int yOff = MainClass.vidmode.height() / 2;
-        glTranslated(xOff, yOff, 0);
-        glScalef(scale, scale, 1);
-        glTranslated(-xOff, -yOff, 1);
+        basePartList.reverseStream().forEachOrdered(this::protectedRender);
+    }
+
+    private void protectedRender(final BasePart basePart) {
+        glPushMatrix();
+        glTranslated(basePart.getPositionX(), basePart.getPositionY(), 0);
+//        startGlScissor(basePart.getPositionX(), basePart.getPositionY(), basePart.getWidth(), basePart.getHeight());
+        basePart.render();
+//        endGlScissor();
+        glPopMatrix();
+    }
+
+
+    public void renderOld() {
 
         glPushMatrix();
         glTranslatef(500, 500, -8.0f);                        // Move Left 1.5 Units And Into The Screen 6.0
-        glRotatef(rotationTriangle, 1.0f, 1.0f, 0.0f);                        // Rotate The Triangle On The Y axis ( NEW )
         glBegin(GL_TRIANGLES);                                // Start Drawing A Triangle
         glColor3f(100, 0.0f, 0.0f);                        // Red
         glVertex3f(0.0f, 100, 0.0f);                    // Top Of Triangle (Front)
@@ -53,7 +154,6 @@ public class Desktop {
 
         glPushMatrix();
         glTranslatef(700, 700, 100.0f);                        // Move Right 1.5 Units And Into The Screen 7.0
-        glRotatef(rotationQuad, 1.0f, 1.0f, 1.0f);                    // Rotate The Quad On The X axis ( NEW )
         glBegin(GL_QUADS);                                    // Draw A Quad
         glColor3f(0.0f, 100f, 0.0f);                        // Set The Color To Blue
         glVertex3f(100f, 100f, -100f);                    // Top Right Of The Quad (Top)
@@ -87,9 +187,9 @@ public class Desktop {
         glVertex3f(100f, -100f, -100f);                    // Bottom Right Of The Quad (Right)
         glEnd();                                            // Done Drawing The Quad
         glPopMatrix();
+    }
 
-//        rotationTriangle += .2f;
-//        rotationQuad -= .2f;
-        scale += .0005f;
+    public void removePart(final BasePart basePart) {
+        basePartList.remove(basePart);
     }
 }
