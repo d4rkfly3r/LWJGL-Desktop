@@ -203,4 +203,8 @@ public class Desktop {
     public int getDisplayWidth() {
         return displayWidth;
     }
+
+    public boolean overrideMousePress(int lastMouseX, int lastMouseY, int button) {
+        return false;
+    }
 }

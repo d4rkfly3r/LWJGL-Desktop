@@ -3,8 +3,7 @@ package net.d4rkfly3r.projects.virtualdesktop;
 import net.d4rkfly3r.projects.virtualdesktop.components.BasicWindow;
 import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
 import org.lwjgl.Version;
-import org.lwjgl.glfw.GLFWErrorCallback;
-import org.lwjgl.glfw.GLFWVidMode;
+import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.system.MemoryStack;
@@ -34,12 +33,70 @@ public class MainClass {
     private long window;
     private Desktop desktop;
     private float xAngle, yAngle;
+    private final GLFWKeyCallbackI glfwKeyCallbackI = (window, key, scancode, action, mods) -> {
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+            glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
+            return;
+        }
+        if (this.keyBindings.containsKey(key)) {
+            this.keyBindings.get(key).iterator().forEachRemaining(con -> con.accept(key, action));
+        }
+        double dAngle = 5;
+        switch (key) {
+            case GLFW_KEY_ESCAPE:
+                break;
+            case GLFW_KEY_LEFT:
+                yAngle -= dAngle;
+                break;
+            case GLFW_KEY_RIGHT:
+                yAngle += dAngle;
+                break;
+            case GLFW_KEY_UP:
+                xAngle += dAngle;
+                break;
+            case GLFW_KEY_DOWN:
+                xAngle -= dAngle;
+                break;
+        }
+    };
     private BasePart lastBasePart;
     private int width;
     private int height;
     private int framebufferID;
     private int framebufferTexID;
     private double lastMouseX, lastMouseY;
+    private int lastMouseButtonAction = -1;
+    private int lastMouseButton = -1;
+    private final GLFWCursorPosCallbackI glfwCursorPosCallbackI = (window1, xPos, yPos) -> {
+        this.lastMouseX = xPos;
+        this.lastMouseY = yPos;
+        if (this.lastMouseButton == GLFW_MOUSE_BUTTON_LEFT && this.lastMouseButtonAction == GLFW_PRESS) {
+            if (this.lastBasePart != null) {
+                this.lastBasePart.mouseDrag((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), this.lastMouseButton);
+            }
+        }
+    };
+    private final GLFWMouseButtonCallbackI glfwMouseButtonCallbackI = (window1, button, action, mods) -> {
+        this.lastMouseButtonAction = action;
+        this.lastMouseButton = button;
+        this.lastBasePart = this.desktop.getPartUnder(((int) this.lastMouseX), ((int) this.lastMouseY));
+        if (action == GLFW_RELEASE) {
+            if (!this.desktop.overrideMouseRelease(((int) this.lastMouseX), ((int) this.lastMouseY), button)) {
+                if (this.lastBasePart != null) {
+                    this.desktop.use(this.lastBasePart);
+                    this.lastBasePart.mouseReleased((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), button);
+                }
+            }
+        }
+        if (action == GLFW_PRESS) {
+            if (!this.desktop.overrideMousePress(((int) this.lastMouseX), ((int) this.lastMouseY), button)) {
+                if (this.lastBasePart != null) {
+                    this.desktop.use(this.lastBasePart);
+                    this.lastBasePart.mouseClicked((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), button);
+                }
+            }
+        }
+    };
 
     public static void main(String[] args) {
         new MainClass().run();
@@ -82,50 +139,11 @@ public class MainClass {
         if (window == NULL)
             throw new RuntimeException("Failed to create the GLFW window");
 
-        // Setup a key callback. It will be called every time a key is pressed, repeated or released.
-        glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
-                glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
-                return;
-            }
-            if (this.keyBindings.containsKey(key)) {
-                this.keyBindings.get(key).iterator().forEachRemaining(con -> con.accept(key, action));
-            }
-            double dAngle = 5;
-            switch (key) {
-                case GLFW_KEY_ESCAPE:
-                    break;
-                case GLFW_KEY_LEFT:
-                    yAngle -= dAngle;
-                    break;
-                case GLFW_KEY_RIGHT:
-                    yAngle += dAngle;
-                    break;
-                case GLFW_KEY_UP:
-                    xAngle += dAngle;
-                    break;
-                case GLFW_KEY_DOWN:
-                    xAngle -= dAngle;
-                    break;
-            }
-        });
+        glfwSetKeyCallback(window, glfwKeyCallbackI);
 
-        glfwSetMouseButtonCallback(window, (window1, button, action, mods) -> {
-            if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-                if (!this.desktop.overrideMouseRelease(((int) this.lastMouseX), ((int) this.lastMouseY), button)) {
-                    if (this.lastBasePart != null) {
-                        this.desktop.use(this.lastBasePart);
-                        this.lastBasePart.mouseReleased((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), button);
-                    }
-                }
-            }
-        });
+        glfwSetMouseButtonCallback(window, glfwMouseButtonCallbackI);
 
-        glfwSetCursorPosCallback(window, (window1, xPos, yPos) -> {
-            this.lastBasePart = this.desktop.getPartUnder((int) xPos, (int) yPos);
-            this.lastMouseX = xPos;
-            this.lastMouseY = yPos;
-        });
+        glfwSetCursorPosCallback(window, glfwCursorPosCallbackI);
 
         // Get the thread stack and push a new frame
         try (MemoryStack stack = stackPush()) {
@@ -352,6 +370,4 @@ public class MainClass {
             }
         });
     }
-
-
 }
