@@ -1,20 +1,15 @@
 package net.d4rkfly3r.projects.virtualdesktop;
 
 
-import de.matthiasmann.twl.utils.PNGDecoder;
 import net.d4rkfly3r.projects.virtualdesktop.components.BasicWindow;
+import net.d4rkfly3r.projects.virtualdesktop.components.StartMenu;
 import net.d4rkfly3r.projects.virtualdesktop.components.TexturedButton;
 import net.d4rkfly3r.projects.virtualdesktop.geometries.GeometrySquare;
 import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL12.*;
 
 /**
  * Created by Joshua Freedman on 1/26/2017.
@@ -22,32 +17,39 @@ import static org.lwjgl.opengl.GL12.*;
  */
 public class Desktop {
 
-    private int backgroundImageTextureID;
     private final int toolbarHeight = 40;
-    private TexturedButton startTexturedButton;
-    private GeometrySquare toolbar;
     private final int displayHeight;
     private final int displayWidth;
     private final UseOrderList<BasePart> basePartList;
+    private final StartMenu startMenu;
+    private int backgroundImageTextureID;
+    private TexturedButton startTexturedButton;
+    private GeometrySquare toolbar;
+    private boolean startOpen;
 
-    public Desktop() {
-        displayHeight = MainClass.vidmode.height();
-        displayWidth = MainClass.vidmode.width();
-        backgroundImageTextureID = loadTexture("assets/background.png");
-        final int startButtonTextureID = loadTexture("assets/start.png");
-        toolbar = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(displayWidth, displayHeight, 0), new Vector4f(0.1f, 1, 0.3f, 0.65f));
+    public Desktop(final MainClass mainClass) {
+        displayHeight = mainClass.getHeight();
+        displayWidth = mainClass.getWidth();
+        backgroundImageTextureID = Util.loadTexture("assets/background.png");
+        final int startButtonTextureID = Util.loadTexture("assets/start.png");
+        toolbar = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(displayWidth, displayHeight, 0), new Vector4f(88.000f / 255.000f, 0, 0, .85f));
         final GeometrySquare startButtonGeometry = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(toolbarHeight * 1.6f, displayHeight, 0), new Vector4f(0, 0, 0, .5f));
         startTexturedButton = new TexturedButton(startButtonGeometry, startButtonTextureID);
         basePartList = new UseOrderList<>();
         basePartList.use(new BasicWindow(this)
                 .setTitle("FoxCore Window Test")
-                .setPositionX(10)
-                .setPositionY(10)
+                .setPositionX(800)
+                .setPositionY(150)
                 .setHeight(500)
                 .setWidth(350)
                 .setPinned(true)
                 .revalidate()
         );
+        this.startMenu = new StartMenu(this, toolbarHeight);
+    }
+
+    public BasePart use(final BasePart item) {
+        return basePartList.use(item);
     }
 
     public BasePart getPartUnder(int x, int y) {
@@ -59,34 +61,6 @@ public class Desktop {
         return null;
     }
 
-
-    private int loadTexture(final String path) {
-        try (final FileInputStream fileInputStream = new FileInputStream(path)) {
-            final PNGDecoder decoder = new PNGDecoder(fileInputStream);
-            final int imageWidth = decoder.getWidth();
-            final int imageHeight = decoder.getHeight();
-            System.out.println("imageWidth=" + imageWidth);
-            System.out.println("imageHeight=" + imageHeight);
-            final ByteBuffer imageByteBuffer = ByteBuffer.allocateDirect(4 * imageWidth * imageHeight);
-            decoder.decode(imageByteBuffer, imageWidth * 4, PNGDecoder.Format.RGBA);
-            imageByteBuffer.flip();
-            final int textureID = glGenTextures();
-            glBindTexture(GL_TEXTURE_2D, textureID); //Bind texture ID
-            //Setup wrap mode
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-            //Setup texture scaling filtering
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageByteBuffer);
-            return textureID;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
 
     public void renderBase() {
         glBindTexture(GL_TEXTURE_2D, backgroundImageTextureID);
@@ -102,12 +76,19 @@ public class Desktop {
         glEnd();
         glBindTexture(GL_TEXTURE_2D, 0);
 
+        glTranslatef(0, 0, -displayWidth - displayHeight - 2);
         toolbar.render();
         startTexturedButton.render();
     }
 
     public void render() {
         basePartList.reverseStream().forEachOrdered(this::protectedRender);
+        if (startOpen) {
+            glPushMatrix();
+            glTranslatef(startMenu.getPositionX(), startMenu.getPositionY(), 0);
+            startMenu.render();
+            glPopMatrix();
+        }
     }
 
     private void protectedRender(final BasePart basePart) {
@@ -117,6 +98,19 @@ public class Desktop {
         basePart.render();
 //        endGlScissor();
         glPopMatrix();
+    }
+
+    private void startGlScissor(int positionX, int positionY, int width, int height) {
+        glEnable(GL_SCISSOR_TEST);
+//        width -= 4;
+//        positionX += 4;
+//        height -= 4;
+        System.out.println(displayHeight + " | " + positionY + " | " + height + " | " + positionX + " | " + width);
+        glScissor(positionX, displayHeight - height - positionY, width, displayHeight - positionY);
+    }
+
+    private void endGlScissor() {
+        glDisable(GL_SCISSOR_TEST);
     }
 
 
@@ -191,5 +185,22 @@ public class Desktop {
 
     public void removePart(final BasePart basePart) {
         basePartList.remove(basePart);
+    }
+
+    public boolean overrideMouseRelease(int lastMouseX, int lastMouseY, int button) {
+        if (this.toolbar.pointLiesWithin(lastMouseX, lastMouseY, 0)) {
+            System.out.println("Start Clicked!");
+            startOpen = !startOpen;
+            return true;
+        }
+        return false;
+    }
+
+    public int getDisplayHeight() {
+        return displayHeight;
+    }
+
+    public int getDisplayWidth() {
+        return displayWidth;
     }
 }

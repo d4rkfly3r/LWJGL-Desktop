@@ -42,4 +42,12 @@ public class GeometrySquare extends Geometry {
         System.out.println(this.start.x() + " | " + this.start.y());
         System.out.println(this.end.x() + " | " + this.end.y());
     }
+
+    @Override
+    public String toString() {
+        return "GeometrySquare{" +
+                "start=" + start +
+                ", end=" + end +
+                '}';
+    }
 }
