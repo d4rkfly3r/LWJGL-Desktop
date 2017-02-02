@@ -2,10 +2,12 @@ package net.d4rkfly3r.projects.virtualdesktop.components;
 
 import net.d4rkfly3r.projects.virtualdesktop.Desktop;
 import net.d4rkfly3r.projects.virtualdesktop.geometries.GeometrySquare;
+import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
 import net.d4rkfly3r.projects.virtualdesktop.parts.WindowPart;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
 
+import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT;
 import static org.lwjgl.opengl.GL11.*;
 
 /**
@@ -151,7 +153,7 @@ public class BasicWindow extends WindowPart {
 
     @Override
     public void mouseReleased(int x, int y, int buttonCode) {
-        if (buttonCode == 0) {
+        if (buttonCode == GLFW_MOUSE_BUTTON_LEFT) {
             if (!this.currentlyDraggable) {
                 if (this.closeButton.pointLiesWithin(x, y, 0)) {
                     this.close();
@@ -159,8 +161,10 @@ public class BasicWindow extends WindowPart {
                     this.setPinned(!this.isPinned());
                 }
                 y -= this.headSize;
+
+            } else {
+                this.currentlyDraggable = false;
             }
-            this.currentlyDraggable = false;
         }
         this.lastClickLocationX = -1;
         this.lastClickLocationY = -1;
@@ -177,15 +181,30 @@ public class BasicWindow extends WindowPart {
     }
 
     @Override
-    public net.d4rkfly3r.projects.virtualdesktop.parts.BasePart revalidate() {
+    public BasePart revalidate() {
         layoutHeadButtons();
         return this;
     }
 
     private void close() {
-        System.out.println("Closing window: " + this.toString());
         desktop.removePart(this);
+        System.out.println("Closing window: " + this.toString());
     }
 
-
+    @Override
+    public String toString() {
+        return "BasicWindow{" +
+                "frameColor=" + frameColor +
+                ", backgroundColor=" + backgroundColor +
+                ", headButtonSize=" + headButtonSize +
+                ", headSize=" + headSize +
+                ", frameWidth=" + frameWidth +
+                ", closeButton=" + closeButton +
+                ", minimizeButton=" + minimizeButton +
+                ", lastClickLocationX=" + lastClickLocationX +
+                ", lastClickLocationY=" + lastClickLocationY +
+                ", currentlyDraggable=" + currentlyDraggable +
+                ", desktop=" + desktop +
+                '}';
+    }
 }

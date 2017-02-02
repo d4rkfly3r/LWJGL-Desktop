@@ -1,5 +1,6 @@
 package net.d4rkfly3r.projects.virtualdesktop;
 
+import net.d4rkfly3r.projects.virtualdesktop.components.BasicWindow;
 import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -9,6 +10,10 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.function.BiConsumer;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -23,6 +28,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  * Project: VirtualDesktop
  */
 public class MainClass {
+    private final HashMap<Integer, List<BiConsumer<Integer, Integer>>> keyBindings = new HashMap<>();
     private GLFWVidMode vidmode;
     // The window handle
     private long window;
@@ -33,6 +39,7 @@ public class MainClass {
     private int height;
     private int framebufferID;
     private int framebufferTexID;
+    private double lastMouseX, lastMouseY;
 
     public static void main(String[] args) {
         new MainClass().run();
@@ -52,44 +59,6 @@ public class MainClass {
         // Terminate GLFW and free the error callback
         glfwTerminate();
         glfwSetErrorCallback(null).free();
-    }
-
-    private void postInit() {
-        // This line is critical for LWJGL's interoperation with GLFW's
-        // OpenGL context, or any context that is managed externally.
-        // LWJGL detects the context that is current in the current thread,
-        // creates the GLCapabilities instance and makes the OpenGL
-        // bindings available for use.
-        GL.createCapabilities();
-
-        width = vidmode.width();
-        height = vidmode.height();
-
-        GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glLoadIdentity();
-        GL11.glOrtho(0, width, height, 0, width + height, -width - height);
-        GL11.glMatrixMode(GL11.GL_MODELVIEW);
-        GL11.glLoadIdentity();
-
-        glShadeModel(GL_SMOOTH);                            //Enables Smooth Color Shading
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);               //This Will Clear The Background Color To Black
-        glClearDepth(1.0);                                  //Enables Clearing Of The Depth Buffer
-        glEnable(GL_DEPTH_TEST);                            //Enables Depth Testing
-        glDepthFunc(GL_LEQUAL);                             //The Type Of Depth Test To Do
-        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);  // Really Nice Perspective Calculations
-        glEnable(GL_TEXTURE_2D);
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-
-        // Run the rendering loop until the user has attempted to close
-        // the window or has pressed the ESCAPE key.
-        this.desktop = new Desktop(this);
-
-        framebufferID = createFBO();
-        framebufferTexID = creatFBOTexture();
-
     }
 
     private void init() {
@@ -115,13 +84,16 @@ public class MainClass {
 
         // Setup a key callback. It will be called every time a key is pressed, repeated or released.
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-//            if (action == GLFW_RELEASE) {
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
+                glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
+                return;
+            }
+            if (this.keyBindings.containsKey(key)) {
+                this.keyBindings.get(key).iterator().forEachRemaining(con -> con.accept(key, action));
+            }
             double dAngle = 5;
             switch (key) {
                 case GLFW_KEY_ESCAPE:
-                    if (action == GLFW_RELEASE) {
-                        glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
-                    }
                     break;
                 case GLFW_KEY_LEFT:
                     yAngle -= dAngle;
@@ -136,16 +108,23 @@ public class MainClass {
                     xAngle -= dAngle;
                     break;
             }
-//            }
         });
 
-
-        glfwSetCursorPosCallback(window, (window1, xpos, ypos) -> {
-            final BasePart basePart = this.desktop.getPartUnder((int) xpos, (int) ypos);
-            if (basePart != null) {
-                this.lastBasePart = basePart;
+        glfwSetMouseButtonCallback(window, (window1, button, action, mods) -> {
+            if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+                if (!this.desktop.overrideMouseRelease(((int) this.lastMouseX), ((int) this.lastMouseY), button)) {
+                    if (this.lastBasePart != null) {
+                        this.desktop.use(this.lastBasePart);
+                        this.lastBasePart.mouseReleased((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), button);
+                    }
+                }
             }
+        });
 
+        glfwSetCursorPosCallback(window, (window1, xPos, yPos) -> {
+            this.lastBasePart = this.desktop.getPartUnder((int) xPos, (int) yPos);
+            this.lastMouseX = xPos;
+            this.lastMouseY = yPos;
         });
 
         // Get the thread stack and push a new frame
@@ -158,6 +137,9 @@ public class MainClass {
 
             // Get the resolution of the primary monitor
             vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+            width = vidmode.width();
+            height = vidmode.height();
 
             // Center the window
             glfwSetWindowPos(
@@ -176,6 +158,43 @@ public class MainClass {
         glfwShowWindow(window);
     }
 
+    private void postInit() {
+        // This line is critical for LWJGL's interoperation with GLFW's
+        // OpenGL context, or any context that is managed externally.
+        // LWJGL detects the context that is current in the current thread,
+        // creates the GLCapabilities instance and makes the OpenGL
+        // bindings available for use.
+        GL.createCapabilities();
+
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glLoadIdentity();
+        GL11.glOrtho(0, width, height, 0, width + height, -width - height);
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glLoadIdentity();
+
+        glShadeModel(GL_SMOOTH);                            //Enables Smooth Color Shading
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);               //This Will Clear The Background Color To Black
+        glClearDepth(1.0);                                  //Enables Clearing Of The Depth Buffer
+        glEnable(GL_DEPTH_TEST);                            //Enables Depth Testing
+        glDepthFunc(GL_LEQUAL);                             //The Type Of Depth Test To Do
+        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);  // Really Nice Perspective Calculations
+        glEnable(GL_TEXTURE_2D);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+        // Run the rendering loop until the user has attempted to close
+        // the window or has pressed the ESCAPE key.
+        this.desktop = new Desktop(this);
+
+        framebufferID = createFBO();
+        framebufferTexID = createFBOTexture();
+
+        registerKeyBinds();
+
+    }
+
     private void loop() {
 
         while (!glfwWindowShouldClose(window)) {
@@ -185,53 +204,27 @@ public class MainClass {
 
             glPushMatrix();
 
-            glPushAttrib(GL_CURRENT_BIT);
-
-            glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, framebufferID);
-            {
-                glClearColor(0, 0, 0, 0); //transparent black
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
-                glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-                glPushMatrix();
-                this.desktop.render();
-                glPopMatrix();
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            }
-            glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-
-            glPopAttrib();
+            startFBORender();
+            glPushMatrix();
+            this.desktop.render();
+            glPopMatrix();
+            finishFBORender();
 
             glPushAttrib(GL_CURRENT_BIT);
             glPushMatrix();
-            glTranslatef(0, 0, width + height - 1);
+            glTranslatef(0, 0, width + height - 1); // Sets render depth to one below the farthest depth.
             this.desktop.renderBase();
             glPopMatrix();
             glPopAttrib();
 
+            // Rotate... currently incorrect and for testing only
+//            glTranslatef(width / 2, height / 2, 0);
+//            glRotatef(xAngle, 1, 0, 0);
+//            glRotatef(yAngle, 0, 1, 0);
+//            glTranslatef(-width / 2, -height / 2, 0);
+//            drawAxis();
 
-            glTranslatef(width / 2, height / 2, 0);
-            glRotatef(xAngle, 1, 0, 0);
-            glRotatef(yAngle, 0, 1, 0);
-            glTranslatef(-width / 2, -height / 2, 0);
-
-
-            glLineWidth(5f);
-            glColor3f(1, 0, 0);
-            glBegin(GL_LINE_STRIP);
-            glVertex3f(0, 0, 0);
-            glVertex3f(100, 0, 0);
-            glEnd();
-            glColor3f(0, 1, 0);
-            glBegin(GL_LINE_STRIP);
-            glVertex3f(0, 0, 0);
-            glVertex3f(0, 100, 0);
-            glEnd();
-            glColor3f(0, 0, 1);
-            glBegin(GL_LINE_STRIP);
-            glVertex3f(0, 0, 0);
-            glVertex3f(0, 0, 100);
-            glEnd();
-
+            // Draw the FBO to the screen.
             glColor4f(1, 1, 1, 1);
             glBindTexture(GL_TEXTURE_2D, framebufferTexID);
             {
@@ -247,7 +240,6 @@ public class MainClass {
                 glEnd();
             }
             glBindTexture(GL_TEXTURE_2D, 0);
-            glEnable(GL_BLEND);
 
             glfwSwapBuffers(window); // swap the color buffers
 
@@ -258,6 +250,39 @@ public class MainClass {
             glPopAttrib();
 
         }
+    }
+
+    private void finishFBORender() {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+        glPopAttrib();
+    }
+
+    private void startFBORender() {
+        glPushAttrib(GL_CURRENT_BIT);
+        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, framebufferID);
+        glClearColor(0, 0, 0, 0); //transparent black
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+    }
+
+    private void drawAxis() {
+        glLineWidth(5f);
+        glColor3f(1, 0, 0);
+        glBegin(GL_LINE_STRIP);
+        glVertex3f(0, 0, 0);
+        glVertex3f(100, 0, 0);
+        glEnd();
+        glColor3f(0, 1, 0);
+        glBegin(GL_LINE_STRIP);
+        glVertex3f(0, 0, 0);
+        glVertex3f(0, 100, 0);
+        glEnd();
+        glColor3f(0, 0, 1);
+        glBegin(GL_LINE_STRIP);
+        glVertex3f(0, 0, 0);
+        glVertex3f(0, 0, 100);
+        glEnd();
     }
 
     private int createFBO() {
@@ -278,7 +303,7 @@ public class MainClass {
         return framebufferObjID;
     }
 
-    private int creatFBOTexture() {
+    private int createFBOTexture() {
         //create texture to render to
         final int framebufferTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, framebufferTexture);
@@ -304,4 +329,29 @@ public class MainClass {
     public int getWidth() {
         return width;
     }
+
+    private void addKeyBinding(int key, BiConsumer<Integer, Integer> consumer) {
+        if (!this.keyBindings.containsKey(key)) {
+            this.keyBindings.put(key, new ArrayList<>());
+        }
+        this.keyBindings.get(key).add(consumer);
+    }
+
+    private void registerKeyBinds() {
+        System.out.println("(Re)Registering Key Bindings!");
+        this.keyBindings.clear();
+        addKeyBinding(GLFW_KEY_E, (integer, integer2) -> System.out.println(integer + " | " + integer2));
+        addKeyBinding(GLFW_KEY_S, (integer, integer2) -> System.err.println(integer + " | " + integer2));
+        addKeyBinding(GLFW_KEY_K, (key, action) -> {
+            if (action == GLFW_RELEASE) {
+                final BasicWindow basicWindow = new BasicWindow(this.desktop);
+                basicWindow.setPositionX(25).setPositionY(25).setWidth(150).setHeight(150);
+                basicWindow.setTitle("FoxEdit Info").revalidate();
+                System.out.println("Adding window: " + basicWindow);
+                desktop.use(basicWindow);
+            }
+        });
+    }
+
+
 }
