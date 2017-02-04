@@ -2,7 +2,6 @@ package net.d4rkfly3r.projects.virtualdesktop.components;
 
 import net.d4rkfly3r.projects.virtualdesktop.Desktop;
 import net.d4rkfly3r.projects.virtualdesktop.geometries.GeometrySquare;
-import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
 import net.d4rkfly3r.projects.virtualdesktop.parts.WindowPart;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
@@ -22,12 +21,13 @@ public class BasicWindow extends WindowPart {
     private int headSize = 30;
     private int frameWidth = 4;
     private GeometrySquare closeButton, minimizeButton;
-    private int lastClickLocationX;
-    private int lastClickLocationY;
+    private double lastClickLocationX;
+    private double lastClickLocationY;
     private boolean currentlyDraggable = false;
     private Desktop desktop;
 
     public BasicWindow(final Desktop desktop) {
+        super();
         this.desktop = desktop;
         layoutHeadButtons();
     }
@@ -136,13 +136,12 @@ public class BasicWindow extends WindowPart {
     }
 
     @Override
-    public net.d4rkfly3r.projects.virtualdesktop.parts.BasePart setWidth(int width) {
-        layoutHeadButtons();
-        return super.setWidth(width);
+    public WindowPart setWidth(int width) {
+        return super.setWidth(width).revalidate();
     }
 
     @Override
-    public void mouseClicked(int x, int y, int buttonCode) {
+    public void mouseClicked(double x, double y, int buttonCode) {
         this.lastClickLocationX = x;
         this.lastClickLocationY = y;
         if (buttonCode == 0) {
@@ -152,13 +151,13 @@ public class BasicWindow extends WindowPart {
     }
 
     @Override
-    public void mouseReleased(int x, int y, int buttonCode) {
+    public void mouseReleased(double x, double y, int buttonCode) {
         if (buttonCode == GLFW_MOUSE_BUTTON_LEFT) {
             if (!this.currentlyDraggable) {
                 if (this.closeButton.pointLiesWithin(x, y, 0)) {
                     this.close();
                 } else if (this.minimizeButton.pointLiesWithin(x, y, 0)) {
-                    this.setPinned(!this.isPinned());
+                    this.setMinimized(!this.isMinimized());
                 }
                 y -= this.headSize;
 
@@ -171,7 +170,7 @@ public class BasicWindow extends WindowPart {
     }
 
     @Override
-    public void mouseDrag(int x, int y, int buttonCode) {
+    public void mouseDrag(double x, double y, int buttonCode) {
         if (buttonCode == 0) {
             if (this.currentlyDraggable) {
                 this.positionX += x - this.lastClickLocationX;
@@ -181,7 +180,8 @@ public class BasicWindow extends WindowPart {
     }
 
     @Override
-    public BasePart revalidate() {
+    public WindowPart revalidate() {
+        super.revalidate();
         layoutHeadButtons();
         return this;
     }

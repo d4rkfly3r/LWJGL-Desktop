@@ -13,4 +13,8 @@ public abstract class Geometry {
     public Vector4f color;
 
     abstract void render();
+
+    public abstract void setPostRender(Runnable runnable);
+
+    public abstract void setPreRender(Runnable runnable);
 }

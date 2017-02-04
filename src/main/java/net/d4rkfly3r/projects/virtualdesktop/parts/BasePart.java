@@ -1,66 +1,64 @@
 package net.d4rkfly3r.projects.virtualdesktop.parts;
 
-import static org.lwjgl.opengl.GL11.*;
-
-public abstract class BasePart {
-    protected int height;
-    protected int positionX;
-    protected int positionY;
-    protected int width;
-    protected boolean pinned;
+public abstract class BasePart<T extends BasePart> {
+    protected double height;
+    protected double positionX;
+    protected double positionY;
+    protected double width;
+    protected boolean minimized;
 
     public abstract void render();
 
-    public int getPositionX() {
+    public double getPositionX() {
         return this.positionX;
     }
 
-    public BasePart setPositionX(int positionX) {
+    public T setPositionX(int positionX) {
         this.positionX = positionX;
-        return this;
+        return (T) this;
     }
 
-    public int getPositionY() {
+    public double getPositionY() {
         return this.positionY;
     }
 
-    public BasePart setPositionY(int positionY) {
+    public T setPositionY(int positionY) {
         this.positionY = positionY;
-        return this;
+        return (T) this;
     }
 
-    public int getWidth() {
+    public double getWidth() {
         return this.width;
     }
 
-    public BasePart setWidth(int width) {
+    public T setWidth(int width) {
         this.width = width;
-        return this;
+        return (T) this;
     }
 
-    public int getHeight() {
+    public double getHeight() {
         return this.height;
     }
 
-    public BasePart setHeight(int height) {
+    public T setHeight(int height) {
         this.height = height;
-        return this;
+        return (T) this;
     }
 
-    public boolean isPinned() {
-        return this.pinned;
+    public boolean isMinimized() {
+        return this.minimized;
     }
 
-    public BasePart setPinned(boolean pinned) {
-        this.pinned = pinned;
-        return this;
+    public T setMinimized(boolean minimized) {
+        this.minimized = minimized;
+        return (T) this;
     }
 
-    public abstract void mouseClicked(int x, int y, int buttonCode);
+    public abstract void mouseClicked(double x, double y, int buttonCode);
 
-    public abstract void mouseReleased(int x, int y, int buttonCode);
+    public abstract void mouseReleased(double x, double y, int buttonCode);
 
-    public abstract void mouseDrag(int x, int y, int buttonCode);
+    public abstract void mouseDrag(double x, double y, int buttonCode);
 
-    public abstract BasePart revalidate();
+    public abstract T revalidate();
 }

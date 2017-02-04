@@ -11,6 +11,8 @@ import static org.lwjgl.opengl.GL11.*;
  */
 public class GeometrySquare extends Geometry {
     public Vector3d start, end;
+    private Runnable postRender;
+    private Runnable preRender;
 
     public GeometrySquare(Vector3d start, Vector3d end, Vector4f color) {
         this.start = start;
@@ -21,6 +23,9 @@ public class GeometrySquare extends Geometry {
 
     @Override
     public void render() {
+        if (preRender != null) {
+            preRender.run();
+        }
         glColor4f(this.color.x(), this.color.y(), this.color.z(), this.color.w());
         glBegin(GL_QUADS);
         // FIXME: Don't think that 'Z' works correctly!
@@ -29,6 +34,19 @@ public class GeometrySquare extends Geometry {
         glVertex3d(this.end.x(), this.end.y(), this.end.z());
         glVertex3d(this.start.x(), this.end.y(), this.end.z());
         glEnd();
+        if (postRender != null) {
+            postRender.run();
+        }
+    }
+
+    @Override
+    public void setPostRender(final Runnable runnable) {
+        this.postRender = runnable;
+    }
+
+    @Override
+    public void setPreRender(Runnable runnable) {
+        this.preRender = runnable;
     }
 
     public boolean pointLiesWithin(double x, double y, double z) {

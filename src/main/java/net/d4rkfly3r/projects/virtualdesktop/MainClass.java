@@ -1,7 +1,7 @@
 package net.d4rkfly3r.projects.virtualdesktop;
 
 import net.d4rkfly3r.projects.virtualdesktop.components.BasicWindow;
-import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
+import net.d4rkfly3r.projects.virtualdesktop.parts.WindowPart;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
@@ -16,9 +16,11 @@ import java.util.function.BiConsumer;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.EXTFramebufferObject.*;
+import static org.lwjgl.opengl.EXTFramebufferObject.GL_FRAMEBUFFER_EXT;
+import static org.lwjgl.opengl.EXTFramebufferObject.glBindFramebufferEXT;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL14.glBlendFuncSeparate;
+import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
@@ -27,8 +29,9 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  * Project: VirtualDesktop
  */
 public class MainClass {
+    public static int framebufferID;
+    public static int framebufferTexID;
     private final HashMap<Integer, List<BiConsumer<Integer, Integer>>> keyBindings = new HashMap<>();
-    private GLFWVidMode vidmode;
     // The window handle
     private long window;
     private Desktop desktop;
@@ -59,40 +62,39 @@ public class MainClass {
                 break;
         }
     };
-    private BasePart lastBasePart;
+    private WindowPart lastBasePart;
     private int width;
     private int height;
-    private int framebufferID;
-    private int framebufferTexID;
     private double lastMouseX, lastMouseY;
     private int lastMouseButtonAction = -1;
     private int lastMouseButton = -1;
     private final GLFWCursorPosCallbackI glfwCursorPosCallbackI = (window1, xPos, yPos) -> {
         this.lastMouseX = xPos;
         this.lastMouseY = yPos;
+        this.desktop.mouseMove(xPos, yPos);
         if (this.lastMouseButton == GLFW_MOUSE_BUTTON_LEFT && this.lastMouseButtonAction == GLFW_PRESS) {
             if (this.lastBasePart != null) {
-                this.lastBasePart.mouseDrag((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), this.lastMouseButton);
+                this.lastBasePart.mouseDrag(this.lastMouseX - this.lastBasePart.getPositionX(), this.lastMouseY - this.lastBasePart.getPositionY(), this.lastMouseButton);
             }
         }
     };
     private final GLFWMouseButtonCallbackI glfwMouseButtonCallbackI = (window1, button, action, mods) -> {
         this.lastMouseButtonAction = action;
         this.lastMouseButton = button;
-        this.lastBasePart = this.desktop.getPartUnder(((int) this.lastMouseX), ((int) this.lastMouseY));
+        this.lastBasePart = this.desktop.getPartUnder(this.lastMouseX, this.lastMouseY);
         if (action == GLFW_RELEASE) {
-            if (!this.desktop.overrideMouseRelease(((int) this.lastMouseX), ((int) this.lastMouseY), button)) {
+            if (!this.desktop.overrideMouseRelease(this.lastMouseX, this.lastMouseY, button)) {
                 if (this.lastBasePart != null) {
                     this.desktop.use(this.lastBasePart);
-                    this.lastBasePart.mouseReleased((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), button);
+                    this.lastBasePart.mouseReleased(this.lastMouseX - this.lastBasePart.getPositionX(), this.lastMouseY - this.lastBasePart.getPositionY(), button);
                 }
             }
         }
         if (action == GLFW_PRESS) {
-            if (!this.desktop.overrideMousePress(((int) this.lastMouseX), ((int) this.lastMouseY), button)) {
+            if (!this.desktop.overrideMousePress(this.lastMouseX, this.lastMouseY, button)) {
                 if (this.lastBasePart != null) {
                     this.desktop.use(this.lastBasePart);
-                    this.lastBasePart.mouseClicked((int) this.lastMouseX - this.lastBasePart.getPositionX(), (int) this.lastMouseY - this.lastBasePart.getPositionY(), button);
+                    this.lastBasePart.mouseClicked(this.lastMouseX - this.lastBasePart.getPositionX(), this.lastMouseY - this.lastBasePart.getPositionY(), button);
                 }
             }
         }
@@ -147,14 +149,14 @@ public class MainClass {
 
         // Get the thread stack and push a new frame
         try (MemoryStack stack = stackPush()) {
-            IntBuffer pWidth = stack.mallocInt(1); // int*
-            IntBuffer pHeight = stack.mallocInt(1); // int*
+            final IntBuffer pWidth = stack.mallocInt(1); // int*
+            final IntBuffer pHeight = stack.mallocInt(1); // int*
 
             // Get the window size passed to glfwCreateWindow
             glfwGetWindowSize(window, pWidth, pHeight);
 
             // Get the resolution of the primary monitor
-            vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+            final GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
             width = vidmode.width();
             height = vidmode.height();
@@ -206,8 +208,10 @@ public class MainClass {
         // the window or has pressed the ESCAPE key.
         this.desktop = new Desktop(this);
 
-        framebufferID = createFBO();
-        framebufferTexID = createFBOTexture();
+        framebufferID = Util.createFBO(width, height);
+//        glBindFramebufferEXT(GL_FRAMEBUFFER, framebufferID);
+        framebufferTexID = Util.createFBOTexture(width, height);
+        glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
 
         registerKeyBinds();
 
@@ -218,15 +222,17 @@ public class MainClass {
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
 
-            glBindTexture(GL_TEXTURE_2D, 0); // unlink textures because if we dont it all is gonna fail
+//            glBindTexture(GL_TEXTURE_2D, 0); // unlink textures because if we dont it all is gonna fail
 
             glPushMatrix();
 
-            startFBORender();
+//            startFBORender();
+            glPushAttrib(GL_CURRENT_BIT);
             glPushMatrix();
             this.desktop.render();
             glPopMatrix();
-            finishFBORender();
+            glPopAttrib();
+//            finishFBORender();
 
             glPushAttrib(GL_CURRENT_BIT);
             glPushMatrix();
@@ -243,21 +249,21 @@ public class MainClass {
 //            drawAxis();
 
             // Draw the FBO to the screen.
-            glColor4f(1, 1, 1, 1);
-            glBindTexture(GL_TEXTURE_2D, framebufferTexID);
-            {
-                glBegin(GL_QUADS);
-                glTexCoord2f(0, 1);
-                glVertex3f(0, 0, 0);
-                glTexCoord2f(1, 1);
-                glVertex3f(width, 0, 0);
-                glTexCoord2f(1, 0);
-                glVertex3f(width, height, 0);
-                glTexCoord2f(0, 0);
-                glVertex3f(0, height, 0);
-                glEnd();
-            }
-            glBindTexture(GL_TEXTURE_2D, 0);
+//            glColor4f(1, 1, 1, 1);
+//            glBindTexture(GL_TEXTURE_2D, framebufferTexID);
+//            {
+//                glBegin(GL_QUADS);
+//                glTexCoord2f(0, 1);
+//                glVertex3f(0, 0, 0);
+//                glTexCoord2f(1, 1);
+//                glVertex3f(width, 0, 0);
+//                glTexCoord2f(1, 0);
+//                glVertex3f(width, height, 0);
+//                glTexCoord2f(0, 0);
+//                glVertex3f(0, height, 0);
+//                glEnd();
+//            }
+//            glBindTexture(GL_TEXTURE_2D, 0);
 
             glfwSwapBuffers(window); // swap the color buffers
 
@@ -303,43 +309,6 @@ public class MainClass {
         glEnd();
     }
 
-    private int createFBO() {
-
-        //frame buffer
-        final int framebufferObjID = glGenFramebuffersEXT();
-        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, framebufferObjID);
-
-        //depth buffer
-        final int depthbufferID = glGenRenderbuffersEXT();
-        glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, depthbufferID);
-
-        //allocate space for the renderbuffer
-        glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT, width, height);
-
-        //attach depth buffer to framebufferObjID
-        glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_RENDERBUFFER_EXT, depthbufferID);
-        return framebufferObjID;
-    }
-
-    private int createFBOTexture() {
-        //create texture to render to
-        final int framebufferTexture = glGenTextures();
-        glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
-
-        //attach texture to the framebufferObjID
-        glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, framebufferTexture, 0);
-
-        //check completeness
-        if (glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT) == GL_FRAMEBUFFER_COMPLETE_EXT) {
-            System.out.println("Frame buffer created successfully.");
-        } else {
-            System.out.println("An error occurred creating the frame buffer.");
-        }
-        return framebufferTexture;
-    }
-
     public int getHeight() {
         return height;
     }
@@ -348,7 +317,7 @@ public class MainClass {
         return width;
     }
 
-    private void addKeyBinding(int key, BiConsumer<Integer, Integer> consumer) {
+    private void addKeyBinding(int key, final BiConsumer<Integer, Integer> consumer) {
         if (!this.keyBindings.containsKey(key)) {
             this.keyBindings.put(key, new ArrayList<>());
         }
@@ -366,7 +335,7 @@ public class MainClass {
                 basicWindow.setPositionX(25).setPositionY(25).setWidth(150).setHeight(150);
                 basicWindow.setTitle("FoxEdit Info").revalidate();
                 System.out.println("Adding window: " + basicWindow);
-                desktop.use(basicWindow);
+                desktop.add(basicWindow);
             }
         });
     }

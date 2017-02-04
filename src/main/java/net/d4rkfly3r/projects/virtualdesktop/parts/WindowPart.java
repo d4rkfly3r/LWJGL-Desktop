@@ -1,12 +1,21 @@
 package net.d4rkfly3r.projects.virtualdesktop.parts;
 
+import net.d4rkfly3r.projects.virtualdesktop.Util;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class WindowPart extends BasePart {
+import static org.lwjgl.opengl.EXTFramebufferObject.glBindFramebufferEXT;
+import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
+
+public abstract class WindowPart extends BasePart<WindowPart> {
 
     protected final List<BasePart> partList;
     protected String title;
+    private int framebufferID;
+    private int framebufferTexID;
 
     protected WindowPart() {
         this.partList = new ArrayList<>();
@@ -36,22 +45,43 @@ public abstract class WindowPart extends BasePart {
         return this;
     }
 
-    @Override
-    public void mouseClicked(int x, int y, int button) {
-
-    }
 
     @Override
-    public void mouseReleased(int x, int y, int button) {
-
-    }
-
-    @Override
-    public BasePart revalidate() {
+    public WindowPart revalidate() {
+        System.out.println("Creating... : " + this.getWidth() + " | " + this.getHeight());
+        if (framebufferID >= 0) {
+            GL30.glDeleteFramebuffers(framebufferID);
+        }
+        framebufferID = Util.createFBO(((int) this.getWidth()), ((int) this.getHeight()));
+        if (framebufferTexID >= 0) {
+            GL11.glDeleteTextures(framebufferTexID);
+        }
+        framebufferTexID = Util.createFBOTexture(((int) this.getWidth()), ((int) this.getHeight()));
+        glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
         return this;
     }
 
     @Override
-    public void mouseDrag(int x, int y, int button) {
+    public WindowPart setWidth(int width) {
+        super.setWidth(width);
+        return this;
+    }
+
+    @Override
+    public WindowPart setHeight(int height) {
+        super.setHeight(height);
+        return this;
+    }
+
+    public int getFramebufferID() {
+        return framebufferID;
+    }
+
+    public int getFramebufferTexID() {
+        return framebufferTexID;
+    }
+
+    public boolean isNotMinimized() {
+        return minimized;
     }
 }

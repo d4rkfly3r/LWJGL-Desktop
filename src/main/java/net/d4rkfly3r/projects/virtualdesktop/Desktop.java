@@ -2,12 +2,12 @@ package net.d4rkfly3r.projects.virtualdesktop;
 
 
 import net.d4rkfly3r.projects.virtualdesktop.components.BasicWindow;
-import net.d4rkfly3r.projects.virtualdesktop.components.StartMenu;
-import net.d4rkfly3r.projects.virtualdesktop.components.TexturedButton;
 import net.d4rkfly3r.projects.virtualdesktop.geometries.GeometrySquare;
-import net.d4rkfly3r.projects.virtualdesktop.parts.BasePart;
+import net.d4rkfly3r.projects.virtualdesktop.parts.WindowPart;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
+
+import java.util.HashMap;
 
 import static org.lwjgl.opengl.GL11.*;
 
@@ -17,45 +17,65 @@ import static org.lwjgl.opengl.GL11.*;
  */
 public class Desktop {
 
-    private final int toolbarHeight = 40;
-    private final int displayHeight;
-    private final int displayWidth;
-    private final UseOrderList<BasePart> basePartList;
-    private final StartMenu startMenu;
+    private final double heightModifier = 100;
+    final double tabViewWidth = heightModifier * (16.0 / 9.0);
+    private final double toolbarHeight = 5;
+    private final double displayHeight;
+    private final double displayWidth;
+    private final UseOrderList<WindowPart> windowPartList;
     private int backgroundImageTextureID;
-    private TexturedButton startTexturedButton;
     private GeometrySquare toolbar;
-    private boolean startOpen;
+    private boolean toolbarOpen = false;
+    private HashMap<WindowPart, GeometrySquare> minimizedGeometries;
 
     public Desktop(final MainClass mainClass) {
         displayHeight = mainClass.getHeight();
         displayWidth = mainClass.getWidth();
+        windowPartList = new UseOrderList<>();
+        minimizedGeometries = new HashMap<>();
         backgroundImageTextureID = Util.loadTexture("assets/background.png");
-        final int startButtonTextureID = Util.loadTexture("assets/start.png");
+
         toolbar = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(displayWidth, displayHeight, 0), new Vector4f(88.000f / 255.000f, 0, 0, .85f));
-        final GeometrySquare startButtonGeometry = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(toolbarHeight * 1.6f, displayHeight, 0), new Vector4f(0, 0, 0, .5f));
-        startTexturedButton = new TexturedButton(startButtonGeometry, startButtonTextureID);
-        basePartList = new UseOrderList<>();
-        basePartList.use(new BasicWindow(this)
+        toolbar.setPostRender(() -> {
+            minimizedGeometries.values().forEach(GeometrySquare::render);
+//            for (int i = 0; i < windowPartList.getItems().size(); i++) {
+//                final double tabViewWidth = heightModifier * (16.0 / 9.0);
+//                final double xOff = tabViewWidth * i + 2 * (i + 1);
+//                final double yOff = toolbar.start.y() + 2;
+//                glColor4f(10.000f / 255.000f, 0, 0, 1);
+//                glBegin(GL_QUADS);
+//                 FIXME: Don't think that 'Z' works correctly!
+//                glVertex3d(xOff, yOff, 0);
+//                glVertex3d(xOff + tabViewWidth, yOff, 0);
+//                glVertex3d(xOff + tabViewWidth, displayHeight, 0);
+//                glVertex3d(xOff, displayHeight, 0);
+//                glEnd();
+//            }
+        });
+
+        add(new BasicWindow(this)
                 .setTitle("FoxCore Window Test")
                 .setPositionX(800)
                 .setPositionY(150)
                 .setHeight(500)
                 .setWidth(350)
-                .setPinned(true)
+                .setMinimized(true)
                 .revalidate()
         );
-        this.startMenu = new StartMenu(this, toolbarHeight);
     }
 
-    public BasePart use(final BasePart item) {
-        return basePartList.use(item);
+    public WindowPart add(final WindowPart item) {
+        final double xOff = tabViewWidth * minimizedGeometries.size() + 2 * (minimizedGeometries.size() + 1);
+        final double yOff = toolbar.start.y() + 2;
+
+        minimizedGeometries.put(item, new GeometrySquare(new Vector3d(xOff, yOff, 0), new Vector3d(xOff + tabViewWidth, displayHeight, 0), new Vector4f(10.000f / 255.000f, 0, 0, 1)));
+        return windowPartList.use(item);
     }
 
-    public BasePart getPartUnder(int x, int y) {
-        for (final BasePart basePart : this.basePartList.itemList) {
-            if (x >= basePart.getPositionX() && x <= basePart.getPositionX() + basePart.getWidth() && y >= basePart.getPositionY() && y <= basePart.getPositionY() + basePart.getHeight()) {
-                return basePart;
+    public WindowPart getPartUnder(double x, double y) {
+        for (final WindowPart windowPart : this.windowPartList.itemList) {
+            if (x >= windowPart.getPositionX() && x <= windowPart.getPositionX() + windowPart.getWidth() && y >= windowPart.getPositionY() && y <= windowPart.getPositionY() + windowPart.getHeight()) {
+                return windowPart;
             }
         }
         return null;
@@ -66,53 +86,107 @@ public class Desktop {
         glBindTexture(GL_TEXTURE_2D, backgroundImageTextureID);
         glBegin(GL_QUADS);
         glTexCoord2f(0, 0);
-        glVertex3f(0, 0, 0);
+        glVertex3d(0, 0, 0);
         glTexCoord2f(1, 0);
-        glVertex3f(displayWidth, 0, 0);
+        glVertex3d(displayWidth, 0, 0);
         glTexCoord2f(1, 1);
-        glVertex3f(displayWidth, displayHeight, 0);
+        glVertex3d(displayWidth, displayHeight, 0);
         glTexCoord2f(0, 1);
-        glVertex3f(0, displayHeight, 0);
+        glVertex3d(0, displayHeight, 0);
         glEnd();
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        glTranslatef(0, 0, -displayWidth - displayHeight - 2);
+        glTranslated(0, 0, -displayWidth - displayHeight - 2);
         toolbar.render();
-        startTexturedButton.render();
     }
 
     public void render() {
-        basePartList.reverseStream().forEachOrdered(this::protectedRender);
-        if (startOpen) {
-            glPushMatrix();
-            glTranslatef(startMenu.getPositionX(), startMenu.getPositionY(), 0);
-            startMenu.render();
-            glPopMatrix();
-        }
+//        windowPartList.reverseStream().filter(WindowPart::isNotMinimized).forEachOrdered(this::protectedRender);
+        windowPartList.reverseStream().forEachOrdered(this::protectedRender);
     }
 
-    private void protectedRender(final BasePart basePart) {
+    private void protectedRender(final WindowPart windowPart) {
         glPushMatrix();
-        glTranslated(basePart.getPositionX(), basePart.getPositionY(), 0);
-//        startGlScissor(basePart.getPositionX(), basePart.getPositionY(), basePart.getWidth(), basePart.getHeight());
-        basePart.render();
+        glTranslated(windowPart.getPositionX(), windowPart.getPositionY(), 0);
+
+//        glPushAttrib(GL_CURRENT_BIT | GL_VIEWPORT_BIT);
+//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, windowPart.getFramebufferID());
+//        final double windowPartWidth = windowPart.getWidth();
+//        final double windowPartHeight = windowPart.getHeight();
+//        System.out.println(windowPartWidth + " | " + windowPartHeight);
+//        glViewport(0, 0, ((int) windowPartWidth), ((int) windowPartHeight));
+
+//        glClearColor(0, 0, 0, 0); //transparent black
+//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
+//        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+
+//        startGlScissor(windowPart.getPositionX(), windowPart.getPositionY(), windowPart.getWidth(), windowPart.getHeight());
+
+//        glPushAttrib(GL_CURRENT_BIT);
+//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, MainClass.framebufferTexID);
+//        glClearColor(0, 0, 0, 0); //transparent black
+//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
+//        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+//
+
+        glPushMatrix();
+        windowPart.render();
+        glPopMatrix();
+
+//        glColor4f(1, 0, 0, 1);
+//        glBegin(GL_QUADS);
+//         FIXME: Don't think that 'Z' works correctly!
+//        glVertex3d(5, 5, 0);
+//        glVertex3d(3000 / 4, 5, 0);
+//        glVertex3d(3000 / 4, 3500 / 3, 0);
+//        glVertex3d(5, 3500 / 3, 0);
+//        glEnd();
+
+//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+//        glPopAttrib();
+
+//        glColor4f(1, 1, 1, 1);
+//        System.err.println(windowPart.getFramebufferTexID());
+//        glBindTexture(GL_TEXTURE_2D, windowPart.getFramebufferTexID());
+//        {
+//            glBegin(GL_QUADS);
+//            glTexCoord2f(0, 1);
+//            glVertex3d(0, 0, 0);
+//            glTexCoord2f(1, 1);
+//            glVertex3d(windowPartWidth, 0, 0);
+//            glTexCoord2f(1, 0);
+//            glVertex3d(windowPartWidth, windowPartHeight, 0);
+//            glTexCoord2f(0, 0);
+//            glVertex3d(0, windowPartHeight, 0);
+//            glEnd();
+//        }
+//        glBindTexture(GL_TEXTURE_2D, 0);
+
+//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+//        glPopAttrib();
+//
+//
+//        glColor4f(1, 1, 1, 1);
+//        glBindTexture(GL_TEXTURE_2D, MainClass.framebufferTexID);
+//        {
+//            glBegin(GL_QUADS);
+//            glTexCoord2f(0, 1);
+//            glVertex3d(0, 0, 0);
+//            glTexCoord2f(1, 1);
+//            glVertex3d(windowPart.getWidth(), 0, 0);
+//            glTexCoord2f(1, 0);
+//            glVertex3d(windowPart.getWidth(), windowPart.getHeight(), 0);
+//            glTexCoord2f(0, 0);
+//            glVertex3d(0, windowPart.getHeight(), 0);
+//            glEnd();
+//        }
+//        glBindTexture(GL_TEXTURE_2D, 0);
+
 //        endGlScissor();
         glPopMatrix();
     }
-
-    private void startGlScissor(int positionX, int positionY, int width, int height) {
-        glEnable(GL_SCISSOR_TEST);
-//        width -= 4;
-//        positionX += 4;
-//        height -= 4;
-        System.out.println(displayHeight + " | " + positionY + " | " + height + " | " + positionX + " | " + width);
-        glScissor(positionX, displayHeight - height - positionY, width, displayHeight - positionY);
-    }
-
-    private void endGlScissor() {
-        glDisable(GL_SCISSOR_TEST);
-    }
-
 
     public void renderOld() {
 
@@ -183,28 +257,58 @@ public class Desktop {
         glPopMatrix();
     }
 
-    public void removePart(final BasePart basePart) {
-        basePartList.remove(basePart);
+    public void removePart(final WindowPart basePart) {
+        final GeometrySquare oldGeometry = minimizedGeometries.get(basePart);
+        minimizedGeometries.remove(basePart);
+        minimizedGeometries.forEach((windowPart, geometrySquare) -> {
+            if (oldGeometry.start.x <= geometrySquare.start.x) {
+                geometrySquare.start.sub(tabViewWidth + 2, 0, 0);
+                geometrySquare.end.sub(tabViewWidth + 2, 0, 0);
+            }
+        });
+        windowPartList.remove(basePart);
     }
 
-    public boolean overrideMouseRelease(int lastMouseX, int lastMouseY, int button) {
-        if (this.toolbar.pointLiesWithin(lastMouseX, lastMouseY, 0)) {
-            System.out.println("Start Clicked!");
-            startOpen = !startOpen;
-            return true;
-        }
+    public boolean overrideMouseRelease(double lastMouseX, double lastMouseY, double button) {
+//        if (this.toolbar.pointLiesWithin(lastMouseX, lastMouseY, 0)) {
+//            System.out.println("Start Clicked!");
+//            startOpen = !startOpen;
+//            return true;
+//        }
         return false;
     }
 
-    public int getDisplayHeight() {
+    public double getDisplayHeight() {
         return displayHeight;
     }
 
-    public int getDisplayWidth() {
+    public double getDisplayWidth() {
         return displayWidth;
     }
 
-    public boolean overrideMousePress(int lastMouseX, int lastMouseY, int button) {
+    public boolean overrideMousePress(double lastMouseX, double lastMouseY, int button) {
         return false;
+    }
+
+    public void mouseMove(double xPos, double yPos) {
+        if (this.toolbar.pointLiesWithin(xPos, yPos, 0)) {
+            if (!this.toolbarOpen) {
+                toolbarOpen = true;
+                this.toolbar.start.sub(0, heightModifier, 0);
+                this.minimizedGeometries.values().forEach(geometrySquare -> {
+                    geometrySquare.start.sub(0, heightModifier, 0);
+                });
+            }
+        } else if (this.toolbarOpen) {
+            toolbarOpen = false;
+            this.toolbar.start.add(0, heightModifier, 0);
+            this.minimizedGeometries.values().forEach(geometrySquare -> {
+                geometrySquare.start.add(0, heightModifier, 0);
+            });
+        }
+    }
+
+    public void use(final WindowPart windowPart) {
+        windowPartList.use(windowPart);
     }
 }

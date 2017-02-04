@@ -1,19 +1,18 @@
 package net.d4rkfly3r.projects.virtualdesktop.parts;
 
-public abstract class ComponentPart extends BasePart {
-
+public abstract class ComponentPart<T> extends BasePart<ComponentPart<T>> {
     @Override
-    public void mouseClicked(int x, int y, int button) {
+    public void mouseDrag(double x, double y, int buttonCode) {
 
     }
 
     @Override
-    public void mouseReleased(int x, int y, int button) {
+    public void mouseReleased(double x, double y, int buttonCode) {
 
     }
 
     @Override
-    public void mouseDrag(int x, int y, int button) {
+    public void mouseClicked(double x, double y, int buttonCode) {
 
     }
 }
