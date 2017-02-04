@@ -5,7 +5,7 @@ public abstract class BasePart<T extends BasePart> {
     protected double positionX;
     protected double positionY;
     protected double width;
-    protected boolean minimized;
+    protected boolean windowed;
 
     public abstract void render();
 
@@ -45,12 +45,12 @@ public abstract class BasePart<T extends BasePart> {
         return (T) this;
     }
 
-    public boolean isMinimized() {
-        return this.minimized;
+    public boolean isWindowed() {
+        return this.windowed;
     }
 
-    public T setMinimized(boolean minimized) {
-        this.minimized = minimized;
+    public T setWindowed(boolean minimized) {
+        this.windowed = minimized;
         return (T) this;
     }
 

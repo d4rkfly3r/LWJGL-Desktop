@@ -13,7 +13,7 @@ import static org.lwjgl.opengl.GL11.*;
  * Created by Joshua Freedman on 1/31/2017.
  * Project: VirtualDesktop
  */
-public class BasicWindow extends WindowPart {
+public class BasicWindow extends WindowPart<BasicWindow> {
 
     private final Vector4f frameColor = new Vector4f(.15f, .15f, .15f, 1);
     private final Vector4f backgroundColor = new Vector4f(.25f, .25f, .25f, 1);
@@ -136,7 +136,7 @@ public class BasicWindow extends WindowPart {
     }
 
     @Override
-    public WindowPart setWidth(int width) {
+    public BasicWindow setWidth(int width) {
         return super.setWidth(width).revalidate();
     }
 
@@ -157,7 +157,7 @@ public class BasicWindow extends WindowPart {
                 if (this.closeButton.pointLiesWithin(x, y, 0)) {
                     this.close();
                 } else if (this.minimizeButton.pointLiesWithin(x, y, 0)) {
-                    this.setMinimized(!this.isMinimized());
+                    this.setWindowed(!this.isWindowed());
                 }
                 y -= this.headSize;
 
@@ -180,7 +180,7 @@ public class BasicWindow extends WindowPart {
     }
 
     @Override
-    public WindowPart revalidate() {
+    public BasicWindow revalidate() {
         super.revalidate();
         layoutHeadButtons();
         return this;

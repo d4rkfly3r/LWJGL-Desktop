@@ -59,7 +59,7 @@ public class Desktop {
                 .setPositionY(150)
                 .setHeight(500)
                 .setWidth(350)
-                .setMinimized(true)
+                .setWindowed(true)
                 .revalidate()
         );
     }
@@ -101,8 +101,8 @@ public class Desktop {
     }
 
     public void render() {
-//        windowPartList.reverseStream().filter(WindowPart::isNotMinimized).forEachOrdered(this::protectedRender);
-        windowPartList.reverseStream().forEachOrdered(this::protectedRender);
+        windowPartList.reverseStream().filter(WindowPart::isNotMinimized).forEachOrdered(this::protectedRender);
+//        windowPartList.reverseStream().forEachOrdered(this::protectedRender);
     }
 
     private void protectedRender(final WindowPart windowPart) {
@@ -270,11 +270,13 @@ public class Desktop {
     }
 
     public boolean overrideMouseRelease(double lastMouseX, double lastMouseY, double button) {
-//        if (this.toolbar.pointLiesWithin(lastMouseX, lastMouseY, 0)) {
-//            System.out.println("Start Clicked!");
-//            startOpen = !startOpen;
-//            return true;
-//        }
+        if (this.toolbar.pointLiesWithin(lastMouseX, lastMouseY, 0)) {
+            this.minimizedGeometries.forEach((windowPart, geometrySquare) -> {
+                if (geometrySquare.pointLiesWithin(lastMouseX, lastMouseY, 0)) {
+                    windowPart.setWindowed(!windowPart.isWindowed());
+                }
+            });
+        }
         return false;
     }
 

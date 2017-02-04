@@ -10,7 +10,7 @@ import java.util.List;
 import static org.lwjgl.opengl.EXTFramebufferObject.glBindFramebufferEXT;
 import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
 
-public abstract class WindowPart extends BasePart<WindowPart> {
+public abstract class WindowPart<T extends WindowPart> extends BasePart<T> {
 
     protected final List<BasePart> partList;
     protected String title;
@@ -21,14 +21,14 @@ public abstract class WindowPart extends BasePart<WindowPart> {
         this.partList = new ArrayList<>();
     }
 
-    public WindowPart addComponent(final ComponentPart iComponentPart) {
+    public T addComponent(final ComponentPart iComponentPart) {
         this.partList.add(iComponentPart);
-        return this;
+        return (T) this;
     }
 
-    public WindowPart addModule(final ModulePart modulePart) {
+    public T addModule(final ModulePart modulePart) {
         this.partList.add(modulePart);
-        return this;
+        return (T) this;
     }
 
     @Override
@@ -40,14 +40,14 @@ public abstract class WindowPart extends BasePart<WindowPart> {
         return this.title;
     }
 
-    public WindowPart setTitle(final String title) {
+    public T setTitle(final String title) {
         this.title = title;
-        return this;
+        return (T) this;
     }
 
 
     @Override
-    public WindowPart revalidate() {
+    public T revalidate() {
         System.out.println("Creating... : " + this.getWidth() + " | " + this.getHeight());
         if (framebufferID >= 0) {
             GL30.glDeleteFramebuffers(framebufferID);
@@ -58,19 +58,19 @@ public abstract class WindowPart extends BasePart<WindowPart> {
         }
         framebufferTexID = Util.createFBOTexture(((int) this.getWidth()), ((int) this.getHeight()));
         glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
-        return this;
+        return (T) this;
     }
 
     @Override
-    public WindowPart setWidth(int width) {
+    public T setWidth(int width) {
         super.setWidth(width);
-        return this;
+        return (T) this;
     }
 
     @Override
-    public WindowPart setHeight(int height) {
+    public T setHeight(int height) {
         super.setHeight(height);
-        return this;
+        return (T) this;
     }
 
     public int getFramebufferID() {
@@ -82,6 +82,6 @@ public abstract class WindowPart extends BasePart<WindowPart> {
     }
 
     public boolean isNotMinimized() {
-        return minimized;
+        return windowed;
     }
 }

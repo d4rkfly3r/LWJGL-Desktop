@@ -222,17 +222,17 @@ public class MainClass {
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
 
-//            glBindTexture(GL_TEXTURE_2D, 0); // unlink textures because if we dont it all is gonna fail
+            glBindTexture(GL_TEXTURE_2D, 0); // unlink textures because if we dont it all is gonna fail
 
             glPushMatrix();
 
-//            startFBORender();
+            startFBORender();
             glPushAttrib(GL_CURRENT_BIT);
             glPushMatrix();
             this.desktop.render();
             glPopMatrix();
             glPopAttrib();
-//            finishFBORender();
+            finishFBORender();
 
             glPushAttrib(GL_CURRENT_BIT);
             glPushMatrix();
@@ -249,21 +249,21 @@ public class MainClass {
 //            drawAxis();
 
             // Draw the FBO to the screen.
-//            glColor4f(1, 1, 1, 1);
-//            glBindTexture(GL_TEXTURE_2D, framebufferTexID);
-//            {
-//                glBegin(GL_QUADS);
-//                glTexCoord2f(0, 1);
-//                glVertex3f(0, 0, 0);
-//                glTexCoord2f(1, 1);
-//                glVertex3f(width, 0, 0);
-//                glTexCoord2f(1, 0);
-//                glVertex3f(width, height, 0);
-//                glTexCoord2f(0, 0);
-//                glVertex3f(0, height, 0);
-//                glEnd();
-//            }
-//            glBindTexture(GL_TEXTURE_2D, 0);
+            glColor4f(1, 1, 1, 1);
+            glBindTexture(GL_TEXTURE_2D, framebufferTexID);
+            {
+                glBegin(GL_QUADS);
+                glTexCoord2f(0, 1);
+                glVertex3f(0, 0, 0);
+                glTexCoord2f(1, 1);
+                glVertex3f(width, 0, 0);
+                glTexCoord2f(1, 0);
+                glVertex3f(width, height, 0);
+                glTexCoord2f(0, 0);
+                glVertex3f(0, height, 0);
+                glEnd();
+            }
+            glBindTexture(GL_TEXTURE_2D, 0);
 
             glfwSwapBuffers(window); // swap the color buffers
 
@@ -331,9 +331,14 @@ public class MainClass {
         addKeyBinding(GLFW_KEY_S, (integer, integer2) -> System.err.println(integer + " | " + integer2));
         addKeyBinding(GLFW_KEY_K, (key, action) -> {
             if (action == GLFW_RELEASE) {
-                final BasicWindow basicWindow = new BasicWindow(this.desktop);
-                basicWindow.setPositionX(25).setPositionY(25).setWidth(150).setHeight(150);
-                basicWindow.setTitle("FoxEdit Info").revalidate();
+                final BasicWindow basicWindow = new BasicWindow(this.desktop)
+                        .setPositionX(25)
+                        .setPositionY(25)
+                        .setWidth(150)
+                        .setHeight(150)
+                        .setTitle("FoxEdit Info")
+                        .setWindowed(true)
+                        .revalidate();
                 System.out.println("Adding window: " + basicWindow);
                 desktop.add(basicWindow);
             }
