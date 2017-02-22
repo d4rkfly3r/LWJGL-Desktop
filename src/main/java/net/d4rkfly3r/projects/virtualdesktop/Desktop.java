@@ -10,6 +10,7 @@ import org.joml.Vector4f;
 import java.util.HashMap;
 
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL14.glBlendFuncSeparate;
 
 /**
  * Created by Joshua Freedman on 1/26/2017.
@@ -37,7 +38,25 @@ public class Desktop {
 
         toolbar = new GeometrySquare(new Vector3d(0, displayHeight - toolbarHeight, 0), new Vector3d(displayWidth, displayHeight, 0), new Vector4f(88.000f / 255.000f, 0, 0, .85f));
         toolbar.setPostRender(() -> {
-            minimizedGeometries.values().forEach(GeometrySquare::render);
+            minimizedGeometries.forEach((windowPart, geometrySquare) -> {
+                windowPart.getFramebuffer().getTexture().bind();
+                {
+
+                    glBegin(GL_QUADS);
+                    glTexCoord2f(0, 1);
+                    glVertex3d(geometrySquare.start.x(), geometrySquare.start.y(), geometrySquare.start.z());
+                    glTexCoord2f(1, 1);
+                    glVertex3d(geometrySquare.end.x(), geometrySquare.start.y(), geometrySquare.start.z());
+                    glTexCoord2f(1, 0);
+                    glVertex3d(geometrySquare.end.x(), geometrySquare.end.y(), geometrySquare.end.z());
+                    glTexCoord2f(0, 0);
+                    glVertex3d(geometrySquare.start.x(), geometrySquare.end.y(), geometrySquare.end.z());
+                    glEnd();
+                }
+                glBindTexture(GL_TEXTURE_2D, 0);
+
+            });
+//            minimizedGeometries.values().forEach(GeometrySquare::render);
 //            for (int i = 0; i < windowPartList.getItems().size(); i++) {
 //                final double tabViewWidth = heightModifier * (16.0 / 9.0);
 //                final double xOff = tabViewWidth * i + 2 * (i + 1);
@@ -109,82 +128,33 @@ public class Desktop {
         glPushMatrix();
         glTranslated(windowPart.getPositionX(), windowPart.getPositionY(), 0);
 
-//        glPushAttrib(GL_CURRENT_BIT | GL_VIEWPORT_BIT);
-//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, windowPart.getFramebufferID());
-//        final double windowPartWidth = windowPart.getWidth();
-//        final double windowPartHeight = windowPart.getHeight();
-//        System.out.println(windowPartWidth + " | " + windowPartHeight);
-//        glViewport(0, 0, ((int) windowPartWidth), ((int) windowPartHeight));
-
-//        glClearColor(0, 0, 0, 0); //transparent black
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
-//        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-
-//        startGlScissor(windowPart.getPositionX(), windowPart.getPositionY(), windowPart.getWidth(), windowPart.getHeight());
-
-//        glPushAttrib(GL_CURRENT_BIT);
-//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, MainClass.framebufferTexID);
-//        glClearColor(0, 0, 0, 0); //transparent black
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
-//        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-//
-
+        windowPart.getFramebuffer().begin();
+        glPushAttrib(GL_CURRENT_BIT);
+        glClearColor(0, 0, 0, 0); //transparent black
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
         glPushMatrix();
         windowPart.render();
         glPopMatrix();
+        glPopAttrib();
+        windowPart.getFramebuffer().end();
 
-//        glColor4f(1, 0, 0, 1);
-//        glBegin(GL_QUADS);
-//         FIXME: Don't think that 'Z' works correctly!
-//        glVertex3d(5, 5, 0);
-//        glVertex3d(3000 / 4, 5, 0);
-//        glVertex3d(3000 / 4, 3500 / 3, 0);
-//        glVertex3d(5, 3500 / 3, 0);
-//        glEnd();
+        windowPart.getFramebuffer().getTexture().bind();
+        {
+            glBegin(GL_QUADS);
+            glTexCoord2f(0, 1);
+            glVertex3d(0, 0, 0);
+            glTexCoord2f(1, 1);
+            glVertex3d(windowPart.getWidth(), 0, 0);
+            glTexCoord2f(1, 0);
+            glVertex3d(windowPart.getWidth(), windowPart.getHeight(), 0);
+            glTexCoord2f(0, 0);
+            glVertex3d(0, windowPart.getHeight(), 0);
+            glEnd();
+        }
+        glBindTexture(GL_TEXTURE_2D, 0);
 
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-//        glPopAttrib();
 
-//        glColor4f(1, 1, 1, 1);
-//        System.err.println(windowPart.getFramebufferTexID());
-//        glBindTexture(GL_TEXTURE_2D, windowPart.getFramebufferTexID());
-//        {
-//            glBegin(GL_QUADS);
-//            glTexCoord2f(0, 1);
-//            glVertex3d(0, 0, 0);
-//            glTexCoord2f(1, 1);
-//            glVertex3d(windowPartWidth, 0, 0);
-//            glTexCoord2f(1, 0);
-//            glVertex3d(windowPartWidth, windowPartHeight, 0);
-//            glTexCoord2f(0, 0);
-//            glVertex3d(0, windowPartHeight, 0);
-//            glEnd();
-//        }
-//        glBindTexture(GL_TEXTURE_2D, 0);
-
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//        glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-//        glPopAttrib();
-//
-//
-//        glColor4f(1, 1, 1, 1);
-//        glBindTexture(GL_TEXTURE_2D, MainClass.framebufferTexID);
-//        {
-//            glBegin(GL_QUADS);
-//            glTexCoord2f(0, 1);
-//            glVertex3d(0, 0, 0);
-//            glTexCoord2f(1, 1);
-//            glVertex3d(windowPart.getWidth(), 0, 0);
-//            glTexCoord2f(1, 0);
-//            glVertex3d(windowPart.getWidth(), windowPart.getHeight(), 0);
-//            glTexCoord2f(0, 0);
-//            glVertex3d(0, windowPart.getHeight(), 0);
-//            glEnd();
-//        }
-//        glBindTexture(GL_TEXTURE_2D, 0);
-
-//        endGlScissor();
         glPopMatrix();
     }
 
@@ -267,6 +237,7 @@ public class Desktop {
             }
         });
         windowPartList.remove(basePart);
+        basePart.getFramebuffer().dispose();
     }
 
     public boolean overrideMouseRelease(double lastMouseX, double lastMouseY, double button) {
@@ -312,5 +283,21 @@ public class Desktop {
 
     public void use(final WindowPart windowPart) {
         windowPartList.use(windowPart);
+    }
+
+    @Override
+    public String toString() {
+        return "Desktop{" +
+                "heightModifier=" + heightModifier +
+                ", tabViewWidth=" + tabViewWidth +
+                ", toolbarHeight=" + toolbarHeight +
+                ", displayHeight=" + displayHeight +
+                ", displayWidth=" + displayWidth +
+                ", windowPartList=" + windowPartList +
+                ", backgroundImageTextureID=" + backgroundImageTextureID +
+                ", toolbar=" + toolbar +
+                ", toolbarOpen=" + toolbarOpen +
+                ", minimizedGeometries=" + minimizedGeometries +
+                '}';
     }
 }

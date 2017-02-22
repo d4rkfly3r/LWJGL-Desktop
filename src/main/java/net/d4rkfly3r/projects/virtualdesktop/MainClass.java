@@ -2,6 +2,7 @@ package net.d4rkfly3r.projects.virtualdesktop;
 
 import net.d4rkfly3r.projects.virtualdesktop.components.BasicWindow;
 import net.d4rkfly3r.projects.virtualdesktop.parts.WindowPart;
+import net.d4rkfly3r.projects.virtualdesktop.rendering.Framebuffer;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
@@ -20,7 +21,6 @@ import static org.lwjgl.opengl.EXTFramebufferObject.GL_FRAMEBUFFER_EXT;
 import static org.lwjgl.opengl.EXTFramebufferObject.glBindFramebufferEXT;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL14.glBlendFuncSeparate;
-import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
@@ -31,6 +31,8 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class MainClass {
     public static int framebufferID;
     public static int framebufferTexID;
+    private static int width;
+    private static int height;
     private final HashMap<Integer, List<BiConsumer<Integer, Integer>>> keyBindings = new HashMap<>();
     // The window handle
     private long window;
@@ -63,8 +65,6 @@ public class MainClass {
         }
     };
     private WindowPart lastBasePart;
-    private int width;
-    private int height;
     private double lastMouseX, lastMouseY;
     private int lastMouseButtonAction = -1;
     private int lastMouseButton = -1;
@@ -99,9 +99,18 @@ public class MainClass {
             }
         }
     };
+    private Framebuffer framebuffer;
 
     public static void main(String[] args) {
         new MainClass().run();
+    }
+
+    public static int getDisplayWidth() {
+        return width;
+    }
+
+    public static int getDisplayHeight() {
+        return height;
     }
 
     public void run() {
@@ -208,10 +217,12 @@ public class MainClass {
         // the window or has pressed the ESCAPE key.
         this.desktop = new Desktop(this);
 
-        framebufferID = Util.createFBO(width, height);
+//        framebufferID = Util.createFBO(width, height);
 //        glBindFramebufferEXT(GL_FRAMEBUFFER, framebufferID);
-        framebufferTexID = Util.createFBOTexture(width, height);
-        glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+//        framebufferTexID = Util.createFBOTexture(width, height);
+//        glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+
+        framebuffer = new Framebuffer(width, height);
 
         registerKeyBinds();
 
@@ -226,13 +237,20 @@ public class MainClass {
 
             glPushMatrix();
 
-            startFBORender();
+//            startFBORender();
+            framebuffer.begin();
             glPushAttrib(GL_CURRENT_BIT);
+
+            glClearColor(0, 0, 0, 0); //transparent black
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
+//            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
             glPushMatrix();
             this.desktop.render();
             glPopMatrix();
+
             glPopAttrib();
-            finishFBORender();
+            framebuffer.end();
+//            finishFBORender();
 
             glPushAttrib(GL_CURRENT_BIT);
             glPushMatrix();
@@ -249,8 +267,9 @@ public class MainClass {
 //            drawAxis();
 
             // Draw the FBO to the screen.
+
             glColor4f(1, 1, 1, 1);
-            glBindTexture(GL_TEXTURE_2D, framebufferTexID);
+            framebuffer.getTexture().bind();
             {
                 glBegin(GL_QUADS);
                 glTexCoord2f(0, 1);

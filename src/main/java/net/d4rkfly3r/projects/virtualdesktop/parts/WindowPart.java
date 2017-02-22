@@ -1,21 +1,15 @@
 package net.d4rkfly3r.projects.virtualdesktop.parts;
 
-import net.d4rkfly3r.projects.virtualdesktop.Util;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL30;
+import net.d4rkfly3r.projects.virtualdesktop.rendering.Framebuffer;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.lwjgl.opengl.EXTFramebufferObject.glBindFramebufferEXT;
-import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
 
 public abstract class WindowPart<T extends WindowPart> extends BasePart<T> {
 
     protected final List<BasePart> partList;
     protected String title;
-    private int framebufferID;
-    private int framebufferTexID;
+    private Framebuffer framebuffer;
 
     protected WindowPart() {
         this.partList = new ArrayList<>();
@@ -49,15 +43,11 @@ public abstract class WindowPart<T extends WindowPart> extends BasePart<T> {
     @Override
     public T revalidate() {
         System.out.println("Creating... : " + this.getWidth() + " | " + this.getHeight());
-        if (framebufferID >= 0) {
-            GL30.glDeleteFramebuffers(framebufferID);
+        if (framebuffer != null) {
+            framebuffer.dispose();
         }
-        framebufferID = Util.createFBO(((int) this.getWidth()), ((int) this.getHeight()));
-        if (framebufferTexID >= 0) {
-            GL11.glDeleteTextures(framebufferTexID);
-        }
-        framebufferTexID = Util.createFBOTexture(((int) this.getWidth()), ((int) this.getHeight()));
-        glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+        System.out.println(framebuffer);
+        framebuffer = new Framebuffer(((int) getWidth()), ((int) getHeight()));
         return (T) this;
     }
 
@@ -73,12 +63,8 @@ public abstract class WindowPart<T extends WindowPart> extends BasePart<T> {
         return (T) this;
     }
 
-    public int getFramebufferID() {
-        return framebufferID;
-    }
-
-    public int getFramebufferTexID() {
-        return framebufferTexID;
+    public Framebuffer getFramebuffer() {
+        return framebuffer;
     }
 
     public boolean isNotMinimized() {

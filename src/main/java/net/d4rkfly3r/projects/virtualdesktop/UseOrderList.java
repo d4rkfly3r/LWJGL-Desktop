@@ -37,4 +37,11 @@ public class UseOrderList<T> {
         this.itemList.forEach(t -> temp.add(0, t));
         return temp.stream();
     }
+
+    @Override
+    public String toString() {
+        return "UseOrderList{" +
+                "itemList=" + itemList +
+                '}';
+    }
 }
