@@ -2,6 +2,7 @@ package net.d4rkfly3r.projects.virtualdesktop.rendering;
 
 import net.d4rkfly3r.projects.virtualdesktop.MainClass;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL11;
 
 import static org.lwjgl.opengl.EXTFramebufferObject.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -25,6 +26,9 @@ public class Framebuffer implements ITexture {
             throw new RuntimeException("FBO extension not supported in hardware");
         }
         texture.bind();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
         id = glGenFramebuffersEXT();
         glBindFramebufferEXT(GL_FRAMEBUFFER, id);
         glFramebufferTexture2DEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,

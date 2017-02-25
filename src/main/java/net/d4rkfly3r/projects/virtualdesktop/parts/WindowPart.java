@@ -42,11 +42,9 @@ public abstract class WindowPart<T extends WindowPart> extends BasePart<T> {
 
     @Override
     public T revalidate() {
-        System.out.println("Creating... : " + this.getWidth() + " | " + this.getHeight());
         if (framebuffer != null) {
             framebuffer.dispose();
         }
-        System.out.println(framebuffer);
         framebuffer = new Framebuffer(((int) getWidth()), ((int) getHeight()));
         return (T) this;
     }

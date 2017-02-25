@@ -137,7 +137,7 @@ public class BasicWindow extends WindowPart<BasicWindow> {
 
     @Override
     public BasicWindow setWidth(int width) {
-        return super.setWidth(width).revalidate();
+        return super.setWidth(width);
     }
 
     @Override
@@ -204,7 +204,6 @@ public class BasicWindow extends WindowPart<BasicWindow> {
                 ", lastClickLocationX=" + lastClickLocationX +
                 ", lastClickLocationY=" + lastClickLocationY +
                 ", currentlyDraggable=" + currentlyDraggable +
-                ", desktop=" + desktop +
                 '}';
     }
 }

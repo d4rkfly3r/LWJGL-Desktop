@@ -6,6 +6,7 @@ import net.d4rkfly3r.projects.virtualdesktop.geometries.GeometrySquare;
 import net.d4rkfly3r.projects.virtualdesktop.parts.WindowPart;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
+import org.lwjgl.opengl.GL11;
 
 import java.util.HashMap;
 
@@ -126,7 +127,8 @@ public class Desktop {
 
     private void protectedRender(final WindowPart windowPart) {
         glPushMatrix();
-        glTranslated(windowPart.getPositionX(), windowPart.getPositionY(), 0);
+
+        glPushMatrix();
 
         windowPart.getFramebuffer().begin();
         glPushAttrib(GL_CURRENT_BIT);
@@ -138,7 +140,10 @@ public class Desktop {
         glPopMatrix();
         glPopAttrib();
         windowPart.getFramebuffer().end();
+        glPopMatrix();
 
+
+        glTranslated(windowPart.getPositionX(), windowPart.getPositionY(), 0);
         windowPart.getFramebuffer().getTexture().bind();
         {
             glBegin(GL_QUADS);
